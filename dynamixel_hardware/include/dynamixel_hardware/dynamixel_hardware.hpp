@@ -24,7 +24,8 @@
 
 #include <map>
 #include <vector>
-
+#include <inttypes.h>
+#include <boost/lexical_cast.hpp>
 #include "dynamixel_hardware/visiblity_control.h"
 #include "rclcpp/macros.hpp"
 
@@ -95,7 +96,7 @@ private:
   std::vector<Joint> joints_;
   std::vector<uint8_t> joint_ids_;
   bool torque_enabled_{false};
-  ControlMode control_mode_{ControlMode::Position};
+  ControlMode control_mode_{ControlMode::Velocity};
   bool use_dummy_{false};
 };
 }  // namespace dynamixel_hardware

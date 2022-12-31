@@ -99,19 +99,19 @@ CallbackReturn DynamixelHardware::on_init(const hardware_interface::HardwareInfo
   }
 
   enable_torque(false);
-  set_control_mode(ControlMode::Position, true);
-  for (uint i = 0; i < info_.joints.size(); ++i) {
-    for (auto paramName : kExtraJointParameters) {
-      if (info_.joints[i].parameters.find(paramName) != info_.joints[i].parameters.end()) {
-        auto value = std::stoi(info_.joints[i].parameters.at(paramName));
-        if (!dynamixel_workbench_.itemWrite(joint_ids_[i], paramName, value, &log)) {
-          RCLCPP_FATAL(rclcpp::get_logger(kDynamixelHardware), "%s", log);
-          return CallbackReturn::ERROR;
-        }
-        RCLCPP_INFO(rclcpp::get_logger(kDynamixelHardware), "%s set to %d for joint %d", paramName, value, i);
-      }
-    }
-  }
+  set_control_mode(ControlMode::Velocity, true);
+  // for (uint i = 0; i < info_.joints.size(); ++i) {
+  //   for (auto paramName : kExtraJointParameters) {
+  //     if (info_.joints[i].parameters.find(paramName) != info_.joints[i].parameters.end()) {
+  //       auto value = std::stoi(info_.joints[i].parameters.at(paramName));
+  //       if (!dynamixel_workbench_.itemWrite(joint_ids_[i], paramName, value, &log)) {
+  //         RCLCPP_FATAL(rclcpp::get_logger(kDynamixelHardware), "%s", log);
+  //         return CallbackReturn::ERROR;
+  //       }
+  //       RCLCPP_INFO(rclcpp::get_logger(kDynamixelHardware), "%s set to %d for joint %d", paramName, value, i);
+  //     }
+  //   }
+  // }
   enable_torque(true);
 
   const ControlItem * goal_position =
@@ -304,36 +304,46 @@ return_type DynamixelHardware::write(const rclcpp::Time & /* time */, const rclc
   std::copy(joint_ids_.begin(), joint_ids_.end(), ids.begin());
   const char * log = nullptr;
 
-  if (std::any_of(
-        joints_.cbegin(), joints_.cend(), [](auto j) { return j.command.velocity != 0.0; })) {
-    // Velocity control
-    set_control_mode(ControlMode::Velocity);
-    for (uint i = 0; i < ids.size(); i++) {
+    // inttypes.h printf("%" PRId32 "\n", m);
+  //if (std::any_of(
+  //        joints_.cbegin(), joints_.cend(), [](auto j) { return j.command.velocity != 0.0; })) {
+      // Velocity
+      // Dynamixel XL430-250T have 0.229 rev/min per unit with max 1023 units per rev
+      // so this makes max rpm = 0.229 * 1023 = 234 rpm but its safe to keep max to 200 rpm
+      // this site will calculate rpm to rad/sec conversion - https://www.inchcalculator.com/convert/revolution-per-minute-to-radian-per-second/
+      //set_control_mode(ControlMode::Velocity);
+      for (uint i = 0; i < ids.size(); i++) {
       commands[i] = dynamixel_workbench_.convertVelocity2Value(
-        ids[i], static_cast<float>(joints_[i].command.velocity));
-    }
-    if (!dynamixel_workbench_.syncWrite(
+          ids[i], static_cast<float>(joints_[i].command.velocity));
+      }
+
+      if((commands[0] && commands[0] != 0) && (commands[0] && commands[1] != 0)){
+        //RCLCPP_INFO(rclcpp::get_logger(kDynamixelHardware), "write to motors:: command1:%" PRId32 " command2:%" PRId32,  commands[0], commands[1] );
+      }
+      if (!dynamixel_workbench_.syncWrite(
           kGoalVelocityIndex, ids.data(), ids.size(), commands.data(), 1, &log)) {
-      RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
-    }
-    return return_type::OK;
-  } else if (std::any_of(
-               joints_.cbegin(), joints_.cend(), [](auto j) { return j.command.effort != 0.0; })) {
-    // Effort control
-    RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "Effort control is not implemented");
-    return return_type::ERROR;
+      RCLCPP_FATAL(rclcpp::get_logger(kDynamixelHardware), "%s", log);
+      }
+      return return_type::OK;
+    //}
+  /*} else if (std::any_of(
+              joints_.cbegin(), joints_.cend(), [](auto j) { return j.command.effort != 0.0; })) {
+      // Effort control
+      RCLCPP_FATAL(rclcpp::get_logger(kDynamixelHardware), "Effort control is not implemented");
+      return return_type::ERROR;
   }
+  */
 
   // Position control
-  set_control_mode(ControlMode::Position);
-  for (uint i = 0; i < ids.size(); i++) {
-    commands[i] = dynamixel_workbench_.convertRadian2Value(
-      ids[i], static_cast<float>(joints_[i].command.position));
-  }
-  if (!dynamixel_workbench_.syncWrite(
-        kGoalPositionIndex, ids.data(), ids.size(), commands.data(), 1, &log)) {
-    RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
-  }
+  // set_control_mode(ControlMode::Position);
+  // for (uint i = 0; i < ids.size(); i++) {
+  //   commands[i] = dynamixel_workbench_.convertRadian2Value(
+  //     ids[i], static_cast<float>(joints_[i].command.position));
+  // }
+  // if (!dynamixel_workbench_.syncWrite(
+  //       kGoalPositionIndex, ids.data(), ids.size(), commands.data(), 1, &log)) {
+  //   RCLCPP_ERROR(rclcpp::get_logger(kDynamixelHardware), "%s", log);
+  // }
 
   return return_type::OK;
 }
